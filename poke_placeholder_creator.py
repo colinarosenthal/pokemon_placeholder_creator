@@ -1,11 +1,10 @@
 #!/usr/bin/env python3  
 """  
 poke_placeholder_creator  
-Reads a CSV export of your card spreadsheet, matches each row to an image  
-URL in the priyamchoksi/pokemon-cards Kaggle dataset (CSV with image_url  
-column pointing at images.pokemontcg.io), and renders a 3x3-per-page  
-print-ready PDF of card-sized placeholders (63mm x 88mm) with cut lines.  
-PDF rendering is done with Playwright/Chromium (no GTK needed).  
+Reads a CSV export of your card spreadsheet, fetches card images from the  
+TCGdex API (https://api.tcgdex.net) in the card's own language, and renders  
+a 3x3-per-page print-ready PDF of card-sized placeholders (63mm x 88mm)  
+with cut lines. PDF rendering is done with Playwright/Chromium.  
 """  
   
 import argparse  
@@ -13,10 +12,25 @@ import csv
 import json  
 import re  
 import unicodedata  
+import urllib.parse  
+import urllib.request  
 from pathlib import Path  
   
 from jinja2 import Template  
 from playwright.sync_api import sync_playwright  
+  
+# Sheet Lang code -> TCGdex language code  
+TCGDEX_LANGS = {  
+    "ENG": "en", "JPN": "ja", "KOR": "ko",  
+    "GER": "de", "FRE": "fr", "ITA": "it",  
+    "SPA": "es", "LAT": "es", "POR": "pt",  
+    "TCHI": "zh-tw", "SCHI": "zh-cn",  
+    "THA": "th", "IND": "id",  
+    # DUT has no TCGdex language -> returns None (NO IMAGE FOUND)  
+}  
+  
+_set_cache = {}   # lang -> list of sets  
+_card_cache = {}  # (lang, set_id) -> list of cards  
   
   
 def norm(s):  
@@ -24,7 +38,7 @@ def norm(s):
     if not s:  
         return ""  
     s = unicodedata.normalize("NFKC", str(s)).lower()  
-    return re.sub(r"[^a-z0-9一-鿿]+", " ", s).strip()  
+    return re.sub(r"[^a-z0-9一-鿿가-힯぀-ヿ]+", " ", s).strip()  
   
   
 def norm_num(s):  
@@ -34,22 +48,6 @@ def norm_num(s):
     s = str(s).strip().lower()  
     m = re.match(r"([a-z]*)\s*0*(\d+)(.*)", s)  
     return f"{m.group(1)}{m.group(2)}{m.group(3)}".strip() if m else s  
-  
-  
-def load_dataset(csv_path):  
-    """Load the priyamchoksi/pokemon-cards dataset CSV."""  
-    cards = []  
-    for r in csv.DictReader(open(csv_path, encoding="utf-8-sig")):  
-        cid = (r.get("id") or "").strip()          # e.g. "pl3-1", "base1-46"  
-        num = norm_num(cid.split("-")[-1]) if "-" in cid else ""  
-        cards.append({  
-            "id": cid,  
-            "num": num,  
-            "name": norm(r.get("name", "")),  
-            "set": norm(r.get("set_name", "")),  
-            "url": (r.get("image_url") or "").strip(),  
-        })  
-    return cards  
   
   
 def get(row, *names):  
@@ -62,61 +60,193 @@ def get(row, *names):
     return ""  
   
   
-def find_image(row, ds, aliases):  
-    """Return image URL or None. Match set+number, then name+number, then name+set."""  
-    name = norm(get(row, "Card Name", "Name"))  
-    card_set = norm(get(row, "Set"))  
-    card_set = norm(aliases.get(card_set, card_set))  
-    number = norm_num(get(row, "#", "Number", "No."))  
-    set_t = set(card_set.split())  
-    name_t = set(name.split())  
+def fetch_json(url):  
+    req = urllib.request.Request(url, headers={"User-Agent": "poke-placeholder-creator"})  
+    with urllib.request.urlopen(req, timeout=30) as r:  
+        return json.loads(r.read().decode("utf-8"))  
   
-    # Pass 1: set + number  
-    if set_t and number:  
-        for e in ds:  
-            if number == e["num"] and set_t.issubset(set(e["set"].split())):  
-                return e["url"]  
-    # Pass 2: name + number  
-    if name_t and number:  
-        for e in ds:  
-            if number == e["num"] and name_t.issubset(set(e["name"].split())):  
-                return e["url"]  
-    # Pass 3: name + set  
-    if name_t and set_t:  
-        for e in ds:  
-            if name_t.issubset(set(e["name"].split())) and set_t.issubset(set(e["set"].split())):  
-                return e["url"]  
+  
+def get_sets(lang):  
+    """All sets in a TCGdex language, cached."""  
+    if lang not in _set_cache:  
+        try:  
+            _set_cache[lang] = fetch_json(f"https://api.tcgdex.net/v2/{lang}/sets")  
+        except Exception as e:  
+            print(f"  ! could not fetch {lang} sets: {e}")  
+            _set_cache[lang] = []  
+    return _set_cache[lang]  
+  
+  
+def get_set_cards(lang, set_id):  
+    """All cards in a set, cached."""  
+    key = (lang, set_id)  
+    if key not in _card_cache:  
+        try:  
+            data = fetch_json(f"https://api.tcgdex.net/v2/{lang}/sets/{set_id}")  
+            _card_cache[key] = data.get("cards", [])  
+        except Exception as e:  
+            print(f"  ! could not fetch set {set_id} ({lang}): {e}")  
+            _card_cache[key] = []  
+    return _card_cache[key]  
+  
+  
+def find_set_id(lang, sheet_set, aliases):  
+    """Match your sheet's Set name to a TCGdex set id."""  
+    want = norm(aliases.get(norm(sheet_set), sheet_set))  
+    want_t = set(want.split())  
+    if not want_t:  
+        return None  
+    for s in get_sets(lang):  
+        if norm(s.get("name", "")) == want:  
+            return s["id"]  
+    for s in get_sets(lang):  
+        if want_t.issubset(set(norm(s.get("name", "")).split())):  
+            return s["id"]  
     return None  
   
   
-def render_pdf(html_path, pdf_path, page_size):  
-    """Print the rendered HTML to PDF via headless Chromium."""  
-    width, height = ("8.5in", "11in") if page_size == "letter" else ("210mm", "297mm")  
-    with sync_playwright() as p:  
-        browser = p.chromium.launch()  
+def name_tokens(s):  
+    return set(norm(s).split())  
+  
+  
+def pick_by_number(cards, number, name_t):  
+    """Cards matching localId; require a name-token overlap to guard against  
+    promo-number collisions (e.g. '059/M-P' matching localId 59)."""  
+    num_match = [c for c in cards  
+                 if norm_num(str(c.get("localId", ""))) == number  
+                 or re.sub(r"\D", "", str(c.get("localId", ""))) == re.sub(r"\D", "", number)]  
+    if not num_match:  
+        return None  
+    if not name_t:  
+        return num_match[0]  
+    for c in num_match:  
+        if name_t & name_tokens(c.get("name", "")):  
+            return c  
+    return None  # number matched but wrong card name -> don't return a wrong image  
+  
+  
+def pick_by_name(cards, name_t):  
+    """Name-only match inside a set (handles collector-number mismatch like  
+    sheet '58/102' vs TCGdex localId '46')."""  
+    if not name_t:  
+        return None  
+    best = None  
+    best_overlap = 0  
+    for c in cards:  
+        overlap = len(name_t & name_tokens(c.get("name", "")))  
+        if overlap > best_overlap:  
+            best_overlap = overlap  
+            best = c  
+    return best  
+  
+  
+def card_image(c):  
+    img = c.get("image")  
+    return f"{img}/high.png" if img else None  
+  
+  
+def find_image(row, aliases):  
+    """Return card image URL from TCGdex, or None."""  
+    lang = TCGDEX_LANGS.get(get(row, "Lang", "Language").strip().upper())  
+    if not lang:  
+        return None  
+  
+    name_t = name_tokens(get(row, "Card Name", "Name"))  
+    raw_num = get(row, "#", "Number", "No.")  
+    number = norm_num(raw_num.split("/")[0])      # "58/102" -> "58"  
+  
+    # Pass 1: set -> number+name, then name-only inside the set  
+    set_id = find_set_id(lang, get(row, "Set"), aliases)  
+    if set_id:  
+        cards = get_set_cards(lang, set_id)  
+        c = pick_by_number(cards, number, name_t) or pick_by_name(cards, name_t)  
+        if c:  
+            return card_image(c)  
+  
+    # Pass 2: name search (helps JPN etc. whose set names don't match yours)  
+    name = get(row, "Card Name", "Name").strip()  
+    if name:  
+        try:  
+            results = fetch_json(  
+                f"https://api.tcgdex.net/v2/{lang}/cards?name={urllib.parse.quote(name)}")  
+            if isinstance(results, dict):  
+                results = [results]  
+        except Exception:  
+            results = []  
+        c = pick_by_number(results, number, name_t)  
+        if c:  
+            return card_image(c)  
+    return None  
+  
+  
+def holo_label(row):  
+    """Generic holo label from Art Type when no note specifies a special holo."""  
+    text = get(row, "Art Type", "Artwork").lower()  
+    if "non-holo" in text or "non holo" in text:  
+        return ""  
+    if "reverse holo" in text:  
+        return "Reverse Holo"  
+    if "shiny holo" in text:  
+        return "Shiny Holo"  
+    if "full art" in text:  
+        return "Full Art"  
+    if re.search(r"\bholo\b", text):  
+        return "Holo"  
+    return ""  
+  
+  
+def build_desc(row):  
+    """Single descriptor line: special-holo phrase first, then all other  
+    notes, joined with ' • '."""  
+    notes_raw = get(row, "Version / Notes", "Notes", "Version")  
+    parts = [p.strip() for p in notes_raw.split(",") if p.strip()]  
+  
+    holo = ""  
+    other = []  
+    for p in parts:  
+        if "holo" in p.lower():  
+            m = re.search(r"([A-Za-zÀ-ÿ' ]+?\b[Hh]olo)\b", p)  
+            label = m.group(1).strip().title() if m else p.title()  
+            generic = {"holo", "reverse holo", "non holo", "non-holo"}  
+            if label.lower() not in generic:  
+                holo = label            # note's holo wins over Art Type  
+            rest = (p[:m.start()] + p[m.end():]).strip() if m else ""  
+            if rest:  
+                other.append(rest)  
+        else:  
+            other.append(p)  
+  
+    if not holo:  
+        holo = holo_label(row)  
+  
+    segs = ([holo] if holo else []) + other  
+    return " • ".join(segs)  
+  
+  
+def render_pdf(html_path, out_path, page_size):  
+    with sync_playwright() as pw:  
+        browser = pw.chromium.launch()  
         page = browser.new_page()  
         page.goto(Path(html_path).resolve().as_uri())  
-        page.wait_for_load_state("networkidle")  # wait for remote card images  
-        page.pdf(path=pdf_path, width=width, height=height,  
-                 print_background=True, margin={"top": "0", "bottom": "0",  
-                                                "left": "0", "right": "0"})  
+        page.wait_for_load_state("networkidle")  
+        page.pdf(  
+            path=out_path,  
+            width="8.5in" if page_size == "letter" else "210mm",  
+            height="11in" if page_size == "letter" else "297mm",  
+            print_background=True,  
+            margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},  
+        )  
         browser.close()  
   
   
 def main():  
     ap = argparse.ArgumentParser()  
     ap.add_argument("csv", help="CSV export of your Google Sheet")  
-    ap.add_argument("dataset", help="The Kaggle pokemon-cards CSV file")  
     ap.add_argument("-o", "--out", default="placeholders.pdf")  
+    ap.add_argument("--html", default="placeholders.html")  
     ap.add_argument("--mapping", default="mapping.json")  
-    ap.add_argument("--html", default="placeholders.html",  
-                    help="Also write the rendered HTML here for editing")  
     ap.add_argument("--page", choices=["letter", "a4"], default="letter")  
     args = ap.parse_args()  
-  
-    print("Loading dataset ...")  
-    ds = load_dataset(args.dataset)  
-    print(f"  {len(ds)} cards")  
   
     mapping = {}  
     mapping_path = Path(args.mapping)  
@@ -126,21 +256,22 @@ def main():
   
     rows = list(csv.DictReader(open(args.csv, encoding="utf-8-sig")))  
     print(f"{len(rows)} rows in spreadsheet")  
+    print("Fetching card images from TCGdex ...")  
   
     cards, unmatched = [], []  
     for i, row in enumerate(rows, 1):  
         if not any(v and v.strip() for v in row.values()):  
             continue  # skip blank rows  
-        url = find_image(row, ds, aliases)  
+        if i % 25 == 0:  
+            print(f"  {i}/{len(rows)} rows processed ...")  
+        url = find_image(row, aliases)  
         card = {  
             "name": get(row, "Card Name", "Name"),  
             "set": get(row, "Set"),  
             "number": get(row, "#", "Number", "No."),  
-            "rarity": get(row, "Rarity"),  
             "lang": get(row, "Lang", "Language"),  
             "year": get(row, "Year"),  
-            "notes": get(row, "Version / Notes", "Notes", "Version"),  
-            "art": get(row, "Artwork", "Art Type"),  
+            "desc": build_desc(row),  
             "image": url,  
         }  
         cards.append(card)  

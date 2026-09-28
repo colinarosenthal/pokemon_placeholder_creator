@@ -1,0 +1,65 @@
+<!DOCTYPE html>  
+<html>  
+<head>  
+<meta charset="utf-8">  
+{% if page_size == 'letter' %}  
+<style>@page { size: Letter; margin: 10mm; }</style>  
+{% else %}  
+<style>@page { size: A4; margin: 10mm; }</style>  
+{% endif %}  
+<style>  
+  * { box-sizing: border-box; margin: 0; padding: 0; }  
+  body {  
+    /* Gill Sans is the actual Pokemon card font; fallbacks keep it close */  
+    font-family: 'Gill Sans', 'Gill Sans MT', 'Cabin', 'Trebuchet MS', sans-serif;  
+  }  
+  .sheet { display: grid; grid-template-columns: repeat(3, 63mm); grid-auto-rows: 88mm;  
+           justify-content: center; page-break-after: always; }  
+  .card {  
+    width: 63mm; height: 88mm; position: relative;  
+    border: 0.3mm solid #999;           /* cut line */  
+    background: #fff; padding: 3mm; overflow: hidden;  
+  }  
+  .setname { text-align: center; font-size: 8pt; font-weight: bold;  
+             text-transform: uppercase; letter-spacing: 0.5pt;  
+             border-bottom: 0.4mm solid #333; padding-bottom: 1mm; }  
+  .namerow { display: flex; justify-content: space-between; align-items: baseline;  
+             margin-top: 1.5mm; }  
+  .cname { font-size: 11pt; font-weight: bold; }  
+  .lang  { font-size: 8pt; font-weight: bold; border: 0.3mm solid #333;  
+           padding: 0 1mm; }  
+  .imgbox { height: 48mm; margin: 2mm 0; display: flex;  
+            align-items: center; justify-content: center;  
+            background: #eee; border: 0.2mm solid #ccc; }  
+  .imgbox img { max-width: 100%; max-height: 100%; object-fit: contain; }  
+  .imgbox .noimg { color: #999; font-size: 7pt; }  
+  .meta { font-size: 7pt; display: flex; justify-content: space-between; }  
+  .notes { font-size: 6.5pt; margin-top: 1mm; color: #333; }  
+  .bottom { position: absolute; bottom: 3mm; left: 3mm; right: 3mm;  
+            display: flex; justify-content: space-between; font-size: 7pt; }  
+</style>  
+</head>  
+<body>  
+{% for page in pages %}  
+<div class="sheet">  
+  {% for c in page %}  
+  <div class="card">  
+    <div class="setname">{{ c.set }}</div>  
+    <div class="namerow">  
+      <span class="cname">{{ c.name }}</span>  
+      <span class="lang">{{ c.lang }}</span>  
+    </div>  
+    <div class="imgbox">  
+      {% if c.image %}<img src="{{ c.image }}">{% else %}<span class="noimg">NO IMAGE FOUND</span>{% endif %}  
+    </div>  
+    <div class="meta">  
+      <span>{{ c.rarity }}</span><span>{{ c.art }}</span>  
+    </div>  
+    <div class="notes">{{ c.notes }}</div>  
+    <div class="bottom"><span>#{{ c.number }}</span><span>{{ c.year }}</span></div>  
+  </div>  
+  {% endfor %}  
+</div>  
+{% endfor %}  
+</body>  
+</html>

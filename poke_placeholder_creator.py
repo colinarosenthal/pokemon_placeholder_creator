@@ -2,100 +2,58 @@
 """  
 poke_placeholder_creator  
 Reads a CSV export of your card spreadsheet, matches each row to an image  
-in a local card-image dataset, and renders a 3x3-per-page print-ready PDF  
-of card-sized placeholders (63mm x 88mm) with cut lines.  
+URL in the priyamchoksi/pokemon-cards Kaggle dataset (CSV with image_url  
+column pointing at images.pokemontcg.io), and renders a 3x3-per-page  
+print-ready PDF of card-sized placeholders (63mm x 88mm) with cut lines.  
+PDF rendering is done with Playwright/Chromium (no GTK needed).  
 """  
   
 import argparse  
 import csv  
 import json  
 import re  
-import sys  
 import unicodedata  
 from pathlib import Path  
   
 from jinja2 import Template  
-from weasyprint import HTML  
-  
-IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}  
+from playwright.sync_api import sync_playwright  
   
   
-def norm(s: str) -> str:  
+def norm(s):  
     """Normalize a string for fuzzy matching."""  
     if not s:  
         return ""  
-    s = unicodedata.normalize("NFKC", str(s))  
-    s = s.lower()  
-    s = re.sub(r"[^a-z0-9一-鿿]+", " ", s)  
-    return s.strip()  
+    s = unicodedata.normalize("NFKC", str(s)).lower()  
+    return re.sub(r"[^a-z0-9一-鿿]+", " ", s).strip()  
   
   
-def norm_num(s: str) -> str:  
+def norm_num(s):  
     """Normalize a card number: '004' -> '4', 'TG04' -> 'tg4'."""  
     if not s:  
         return ""  
     s = str(s).strip().lower()  
     m = re.match(r"([a-z]*)\s*0*(\d+)(.*)", s)  
-    if m:  
-        return f"{m.group(1)}{m.group(2)}{m.group(3)}".strip()  
-    return s  
+    return f"{m.group(1)}{m.group(2)}{m.group(3)}".strip() if m else s  
   
   
-def build_index(image_root: Path):  
-    """Walk the dataset folder and index every image file."""  
-    index = []  # list of dicts: path, norm_text (folder+filename), number  
-    for p in image_root.rglob("*"):  
-        if p.suffix.lower() not in IMAGE_EXTS:  
-            continue  
-        rel = p.relative_to(image_root)  
-        text = norm(" ".join(rel.parts))          # "base1 4 charmander"  
-        num = norm_num(p.stem)                    # number in filename, if any  
-        m = re.search(r"(\d+)", p.stem)  
-        index.append({"path": p, "text": text, "num": num,  
-                      "digits": m.group(1).lstrip("0") if m else ""})  
-    return index  
-  
-  
-def load_mapping(path: Path):  
-    if path.exists():  
-        return json.loads(path.read_text(encoding="utf-8"))  
-    return {}  
-  
-  
-def find_image(row, index, set_aliases):  
-    """Return image Path or None. Match set+number first, then name+number."""  
-    card_set = norm(row.get("Set", ""))  
-    card_set = norm(set_aliases.get(card_set, card_set))  
-    name = norm(row.get("Card Name", ""))  
-    number = norm_num(row.get("#", ""))  
-    digits = re.sub(r"\D", "", number)  
-  
-    set_tokens = set(card_set.split())  
-  
-    # Pass 1: set name (all tokens) + number  
-    if set_tokens and digits:  
-        for e in index:  
-            if digits == e["digits"] and set_tokens.issubset(set(e["text"].split())):  
-                return e["path"]  
-  
-    # Pass 2: card name + number  
-    name_tokens = set(name.split())  
-    if name_tokens and digits:  
-        for e in index:  
-            if digits == e["digits"] and name_tokens.issubset(set(e["text"].split())):  
-                return e["path"]  
-  
-    # Pass 3: name alone  
-    if name_tokens:  
-        for e in index:  
-            if name_tokens.issubset(set(e["text"].split())):  
-                return e["path"]  
-  
-    return None  
+def load_dataset(csv_path):  
+    """Load the priyamchoksi/pokemon-cards dataset CSV."""  
+    cards = []  
+    for r in csv.DictReader(open(csv_path, encoding="utf-8-sig")):  
+        cid = (r.get("id") or "").strip()          # e.g. "pl3-1", "base1-46"  
+        num = norm_num(cid.split("-")[-1]) if "-" in cid else ""  
+        cards.append({  
+            "id": cid,  
+            "num": num,  
+            "name": norm(r.get("name", "")),  
+            "set": norm(r.get("set_name", "")),  
+            "url": (r.get("image_url") or "").strip(),  
+        })  
+    return cards  
   
   
 def get(row, *names):  
-    """Flexible column lookup (case/space-insensitive, ignores empty cols)."""  
+    """Flexible column lookup (case/space-insensitive, skips empty values)."""  
     lowered = {k.strip().lower(): v for k, v in row.items() if k}  
     for n in names:  
         for k, v in lowered.items():  
@@ -104,27 +62,67 @@ def get(row, *names):
     return ""  
   
   
+def find_image(row, ds, aliases):  
+    """Return image URL or None. Match set+number, then name+number, then name+set."""  
+    name = norm(get(row, "Card Name", "Name"))  
+    card_set = norm(get(row, "Set"))  
+    card_set = norm(aliases.get(card_set, card_set))  
+    number = norm_num(get(row, "#", "Number", "No."))  
+    set_t = set(card_set.split())  
+    name_t = set(name.split())  
+  
+    # Pass 1: set + number  
+    if set_t and number:  
+        for e in ds:  
+            if number == e["num"] and set_t.issubset(set(e["set"].split())):  
+                return e["url"]  
+    # Pass 2: name + number  
+    if name_t and number:  
+        for e in ds:  
+            if number == e["num"] and name_t.issubset(set(e["name"].split())):  
+                return e["url"]  
+    # Pass 3: name + set  
+    if name_t and set_t:  
+        for e in ds:  
+            if name_t.issubset(set(e["name"].split())) and set_t.issubset(set(e["set"].split())):  
+                return e["url"]  
+    return None  
+  
+  
+def render_pdf(html_path, pdf_path, page_size):  
+    """Print the rendered HTML to PDF via headless Chromium."""  
+    width, height = ("8.5in", "11in") if page_size == "letter" else ("210mm", "297mm")  
+    with sync_playwright() as p:  
+        browser = p.chromium.launch()  
+        page = browser.new_page()  
+        page.goto(Path(html_path).resolve().as_uri())  
+        page.wait_for_load_state("networkidle")  # wait for remote card images  
+        page.pdf(path=pdf_path, width=width, height=height,  
+                 print_background=True, margin={"top": "0", "bottom": "0",  
+                                                "left": "0", "right": "0"})  
+        browser.close()  
+  
+  
 def main():  
     ap = argparse.ArgumentParser()  
     ap.add_argument("csv", help="CSV export of your Google Sheet")  
-    ap.add_argument("images", help="Root folder of the card image dataset")  
+    ap.add_argument("dataset", help="The Kaggle pokemon-cards CSV file")  
     ap.add_argument("-o", "--out", default="placeholders.pdf")  
     ap.add_argument("--mapping", default="mapping.json")  
     ap.add_argument("--html", default="placeholders.html",  
-                    help="Also write the intermediate HTML here for editing")  
+                    help="Also write the rendered HTML here for editing")  
     ap.add_argument("--page", choices=["letter", "a4"], default="letter")  
     args = ap.parse_args()  
   
-    image_root = Path(args.images)  
-    if not image_root.is_dir():  
-        sys.exit(f"Image folder not found: {image_root}")  
+    print("Loading dataset ...")  
+    ds = load_dataset(args.dataset)  
+    print(f"  {len(ds)} cards")  
   
-    print(f"Indexing images in {image_root} ...")  
-    index = build_index(image_root)  
-    print(f"  {len(index)} images indexed")  
-  
-    set_aliases = {norm(k): v for k, v in  
-                   load_mapping(Path(args.mapping)).get("set_aliases", {}).items()}  
+    mapping = {}  
+    mapping_path = Path(args.mapping)  
+    if mapping_path.exists():  
+        mapping = json.loads(mapping_path.read_text(encoding="utf-8"))  
+    aliases = {norm(k): v for k, v in mapping.get("set_aliases", {}).items()}  
   
     rows = list(csv.DictReader(open(args.csv, encoding="utf-8-sig")))  
     print(f"{len(rows)} rows in spreadsheet")  
@@ -133,7 +131,7 @@ def main():
     for i, row in enumerate(rows, 1):  
         if not any(v and v.strip() for v in row.values()):  
             continue  # skip blank rows  
-        img = find_image(row, index, set_aliases)  
+        url = find_image(row, ds, aliases)  
         card = {  
             "name": get(row, "Card Name", "Name"),  
             "set": get(row, "Set"),  
@@ -143,19 +141,25 @@ def main():
             "year": get(row, "Year"),  
             "notes": get(row, "Version / Notes", "Notes", "Version"),  
             "art": get(row, "Artwork", "Art Type"),  
-            "image": img.as_uri() if img else None,  
+            "image": url,  
         }  
         cards.append(card)  
-        if not img:  
-            unmatched.append({"row": i, **{k: card[k] for k in  
-                              ("name", "set", "number", "lang")}})  
+        if not url:  
+            unmatched.append({  
+                "row": i,  
+                "name": card["name"],  
+                "set": card["set"],  
+                "number": card["number"],  
+                "lang": card["lang"],  
+            })  
   
     template = Template(Path("card_template.html").read_text(encoding="utf-8"))  
     pages = [cards[i:i + 9] for i in range(0, len(cards), 9)]  
     html = template.render(pages=pages, page_size=args.page)  
   
     Path(args.html).write_text(html, encoding="utf-8")  
-    HTML(string=html, base_url=".").write_pdf(args.out)  
+    print("Rendering PDF via Chromium ...")  
+    render_pdf(args.html, args.out, args.page)  
     print(f"Wrote {args.out} ({len(pages)} pages, {len(cards)} cards)")  
     print(f"Editable HTML copy: {args.html}")  
   
@@ -164,7 +168,7 @@ def main():
             w = csv.DictWriter(f, fieldnames=["row", "name", "set", "number", "lang"])  
             w.writeheader()  
             w.writerows(unmatched)  
-        print(f"{len(unmatched)} unmatched cards -> unmatched.csv")  
+        print(f"{len(unmatched)} unmatched -> unmatched.csv")  
   
   
 if __name__ == "__main__":  

@@ -2,58 +2,65 @@
 <html>  
 <head>  
 <meta charset="utf-8">  
-{% if page_size == 'letter' %}  
-<style>@page { size: Letter; margin: 0; }</style>  
-{% else %}  
-<style>@page { size: A4; margin: 0; }</style>  
-{% endif %}  
 <style>  
-  @import url('https://fonts.googleapis.com/css2?family=Silkscreen&display=swap');  
-  * { box-sizing: border-box; margin: 0; padding: 0; }  
-  body {  
-    font-family: 'Gill Sans', 'Gill Sans MT', 'Cabin', 'Trebuchet MS', sans-serif;  
-  }  
-  .sheet { display: grid; grid-template-columns: repeat(3, 63mm); grid-auto-rows: 88mm;  
-           justify-content: center; align-content: center;  
-           width: 100%; height: 100%; page-break-after: always; }  
-  .card {  
-    width: 63mm; height: 88mm; position: relative;  
-    border: 0.3mm solid #999;  
-    background: #fff; overflow: hidden;  
-  }  
-  .namerow {  
-    position: absolute; top: 3.5mm; left: 4mm; right: 4mm;  
-    display: flex; justify-content: space-between; align-items: baseline;  
-    letter-spacing: 0.5pt;  
-  }  
-  .cname { font-size: 9pt; font-weight: bold; }  
-  .lang  { font-size: 8pt; font-weight: bold; border: 0.3mm solid #333;  
-           padding: 0 1mm; }  
-  .setname {  
-    position: absolute; top: 9mm; left: 4mm; right: 4mm;  
-    text-align: center; font-size: 9pt; font-weight: bold;  
-    text-transform: uppercase; letter-spacing: 2pt;  
-    word-wrap: break-word;  
-  }  
-  .imgbox {  
-    position: absolute; top: 24mm; left: 50%; transform: translateX(-50%);  
-    width: 40mm; height: 48mm;  
-    display: flex; align-items: center; justify-content: center;  
-  }  
-  .imgbox img { max-width: 100%; max-height: 100%; object-fit: contain; }  
-  .imgbox .noimg { color: #bbb; font-size: 7pt; }  
-  .desc {  
-    position: absolute; top: 73mm; left: 3mm; right: 3mm;  
-    text-align: center; font-size: 8pt;  
-    font-family: 'Silkscreen', monospace;  
-  }  
-  .num, .year {  
-    position: absolute; bottom: 3mm;  
-    font-family: 'Silkscreen', monospace;  
-    font-size: 8pt;  
-  }  
-  .num  { left: 3mm; }  
-  .year { right: 3mm; }  
+@import url('https://fonts.googleapis.com/css2?family=Silkscreen&display=swap');  
+  
+{% if page_size == 'letter' %}  
+@page { size: Letter; margin: 0; }  
+{% else %}  
+@page { size: A4; margin: 0; }  
+{% endif %}  
+  
+* { box-sizing: border-box; margin: 0; padding: 0; }  
+body {  
+  font-family: 'Gill Sans', 'Gill Sans MT', 'Cabin', 'Trebuchet MS', sans-serif;  
+}  
+.sheet { display: grid; grid-template-columns: repeat(3, 63mm); grid-auto-rows: 88mm;  
+         justify-content: center; align-content: center;  
+         width: 100%; height: 100%; page-break-after: always; }  
+.card {  
+  width: 63mm; height: 88mm; position: relative;  
+  border: 0.3mm solid #999;  
+  background: #fff; overflow: hidden;  
+}  
+.namerow {  
+  position: absolute; top: 3mm; left: 4mm; right: 4mm;  
+  display: flex; justify-content: space-between; align-items: baseline;  
+}  
+.cname { font-size: 10pt; font-weight: bold; }  
+.lang  { font-size: 8pt; font-weight: bold; font-family: 'Silkscreen', monospace; }  
+.setname {  
+  position: absolute; top: 8mm; left: 4mm; right: 4mm;  
+  text-align: center; font-size: 9pt; font-weight: bold;  
+  text-transform: uppercase; letter-spacing: 1pt;  
+}  
+.imgbox { position: absolute; top: 21mm; left: 0; right: 0; height: 50mm;  
+          display: flex; align-items: center; justify-content: center; }  
+.imgbox img {  
+  max-height: 50mm; max-width: 40mm; object-fit: contain;  
+  border-radius: 1.8mm;  
+  clip-path: inset(0 round 1.8mm);  
+}  
+.imgbox .noimg {  
+  width: 35.8mm; height: 50mm;  
+  background: #e5e5e5; border: 0.2mm dashed #bbb;  
+  border-radius: 1.8mm;  
+  clip-path: inset(0 round 1.8mm);  
+  display: flex; align-items: center; justify-content: center;  
+  color: #999; font-size: 6pt;  
+}  
+.desc {  
+  position: absolute; top: 73mm; left: 3mm; right: 3mm;  
+  text-align: center; font-family: 'Silkscreen', monospace;  
+  font-size: 8pt; color: #333;  
+}  
+.num, .year {  
+  position: absolute; bottom: 3mm;  
+  font-family: 'Silkscreen', monospace;  
+  font-size: 8pt;  
+}  
+.num  { left: 3mm; }  
+.year { right: 3mm; }  
 </style>  
 </head>  
 <body>  

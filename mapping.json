@@ -2,6 +2,19 @@
   "set_aliases": {  
     "Expansion Pack": "base1",  
     "Base Set": "base1",  
-    "Team Rocket": "base5"  
+    "Team Rocket": "base5",  
+    "Expedition Base Set": "ecard1",  
+    "Pokémon Card 151": "sv03.5",  
+    "Pokemon Card 151": "sv03.5",  
+    "Pokémon 151": "sv03.5",  
+    "Pokemon Card Game Classic": "Pokémon Trading Card Game Classic",  
+    "Hidden Fates": "sm115",  
+    "Paldean Fates": "sv04.5",  
+    "Boundaries Crossed": "bw7",  
+    "EX Power Keepers": "ex16",  
+    "EX Crystal Guardians": "ex14",  
+    "EX Dragon": "ex3",  
+    "EX FireRed & LeafGreen": "ex6",  
+    "EX Legend Maker": "ex6"  
   }  
 }

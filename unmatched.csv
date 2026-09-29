@@ -1,4 +1,9 @@
 row,name,set,number,lang
+1,ヒトカゲ,Expansion Pack,004,JPN
+2,ヒトカゲ,Expansion Pack,004,JPN
+3,ヒトカゲ,Rocket Gang,004,JPN
+4,ヒトカゲ,Vending Machine Extended Sheet 1,004,JPN
+5,ヒトカゲ,Quick Starter Gift Set,004,JPN
 6,カツラのヒトカゲ,Challenge from the Darkness,004,JPN
 8,Glumanda,Base Set,58/102,GER
 10,Charmander,Base Set,58/102,ITA
@@ -14,6 +19,7 @@ row,name,set,number,lang
 23,Charmander,Base Set,58/102,DUT
 24,파이리,Base Set,58/102,KOR
 25,小火龍,Base Set,58/102,TCHI
+26,ヒトカゲ,Pokémon Snap Best Photo Contest,004,JPN
 27,カツラのヒトカゲ,Guren Town Gym,004,JPN
 28,Charmander,Base Set,58/102,SPA
 30,Charmander,Base Set,58/102,SPA
@@ -33,6 +39,7 @@ row,name,set,number,lang
 61,Charmander,Expedition Base Set,98/165,ITA
 63,Glumanda,Expedition Base Set,98/165,GER
 65,Charmander,Expedition Base Set,98/165,ITA
+66,ヒトカゲ,McDonald's Pokémon-e Minimum Pack,004/018,JPN
 68,Glumanda,EX Dragon,98/97,GER
 70,Charmander,EX Dragon,98/97,ITA
 71,ヒトカゲ,Gift Box: Latias Half Deck,001/018,JPN
@@ -87,6 +94,8 @@ row,name,set,number,lang
 154,Charmander,Secret Wonders,82/132,ITA
 155,Charmander,Secret Wonders,82/132,SPA
 156,Charmander,Secret Wonders,82/132,POR
+157,ヒトカゲ,Shining Darkness,BPDP#004,JPN
+158,ヒトカゲ,Shining Darkness,BPDP#004,JPN
 159,파이리,Guardians of Ancient Times,05/40,KOR
 161,Glumanda,Secret Wonders,82/132,GER
 164,Glumanda,Stormfront,101/100,GER
@@ -156,13 +165,13 @@ row,name,set,number,lang
 278,Charmander,First Impact GX Starter Deck,014/140,IND
 280,ฮิโตคาเงะ,First Impact Set A,036/150,THA
 281,Charmander,First Impact Set A,036/150,IND
+282,Charmander,SM-P Promotional cards,015/SM-P,IND
 283,小火龍,Dreams Come True Collection Set B,002/200,TCHI
 284,ฮิโตคาเงะ,Hidden Shadow Set A,042/183,THA
 285,Charmander,Hidden Shadow Set A,042/183,IND
 286,Charmander,Hidden Shadow GX Starter Deck,017/146,IND
 287,Salamèche,McDonald's Collection 2019,9/40,FRE
 288,Salamèche,McDonald's Collection 2019,9/40,FRE
-290,Glumanda,Hidden Fates,SV6/SV94,GER
 291,Salamèche,Hidden Fates,SV6/SV94,FRE
 292,Charmander,Hidden Fates,SV6/SV94,ITA
 293,Charmander,Hidden Fates,SV6/SV94,SPA
@@ -173,35 +182,61 @@ row,name,set,number,lang
 327,파이리,Detective Pikachu,004/018,KOR
 328,파이리,Detective Pikachu,004/018,KOR
 331,Salamèche,Hidden Fates,7/68,FRE
+332,Charmander,Hidden Fates,7/68,ITA
+333,Charmander,Hidden Fates,7/68,SPA
+334,Charmander,Hidden Fates,7/68,POR
 335,ヒトカゲ,Family Pokémon Card Game,007/051,JPN
 336,파이리,Family Pokémon Card Game,007/051,KOR
 339,Salamèche,Hidden Fates,7/68,FRE
+340,Charmander,Hidden Fates,7/68,ITA
+341,Charmander,Hidden Fates,7/68,SPA
+342,Charmander,Hidden Fates,7/68,POR
 343,파이리,Random Half Deck,009/080,KOR
 360,小火龍,Double Burst Set B,003/186,TCHI
 361,ฮิโตคาเงะ,Double Burst Set B,003/186,THA
 362,小火龍,Double Burst GX Starter Deck,013/169,TCHI
 363,ฮิโตคาเงะ,Double Burst GX Starter Deck,013/169,THA
 364,Charmander,Tag Team Collection GX Starter Deck,019/172,IND
+365,小火龍,Double Burst Set B,004/186,TCHI
+366,ฮิโตคาเงะ,Double Burst Set B,004/186,THA
 373,ヒトカゲ,Amazing Volt Tackle,010/100,JPN
 374,파이리,Amazing Volt Tackle,010/100,KOR
+375,小火龍,Amazing Volt Tackle,010/100,TCHI
 382,ヒトカゲ,S-P Promotional Cards,112/S-P,JPN
 383,파이리,S-P Promotional Cards,066/S-P,KOR
 384,小火龍,S-P Promotional Cards,029/S-P,TCHI
+385,Charmander,Kanto First Partners Pack,58/102,ENG
 386,Glumanda,Kanto First Partners Pack,58/102,GER
+387,Salamèche,Kanto First Partners Pack,58/102,FRE
 388,Charmander,Kanto First Partners Pack,58/102,ITA
 389,Charmander,Kanto First Partners Pack,58/102,POR
 390,ヒトカゲ,World Champions Pack,006/108,JPN
 391,Charmander,McDonald's Collection 2021,9/25,ENG
+392,Glumanda,McDonald's Collection 2021,9/25,GER
 393,Salamèche,McDonald's Collection 2021,9/25,FRE
+394,Charmander,McDonald's Collection 2021,9/25,ITA
+395,Charmander,McDonald's Collection 2021,9/25,SPA
+396,Charmander,McDonald's Collection 2021,9/25,POR
 397,Charmander,McDonald's Collection 2021,9/25,ENG
+398,Glumanda,McDonald's Collection 2021,9/25,GER
 399,Salamèche,McDonald's Collection 2021,9/25,FRE
+400,Charmander,McDonald's Collection 2021,9/25,ITA
+401,Charmander,McDonald's Collection 2021,9/25,SPA
+402,Charmander,McDonald's Collection 2021,9/25,POR
 403,ฮิโตคาเงะ,Shiny VMAX Collection Set A,001/159,THA
 404,Charmander,Shiny VMAX Collection Set A,001/159,IND
 406,Charmander,S-P Promotional Cards,088/S-P,IND
 407,ヒトカゲ,VMAX Climax,015/184,JPN
 408,파이리,VMAX Climax,015/184,KOR
+409,小火龍,VMAX Climax,015/184,TCHI
+410,ฮิโตคาเงะ,VMAX Climax,015/184,THA
+411,Charmander,VMAX Climax,015/184,IND
 412,ヒトカゲ,VMAX Climax,015/184,JPN
 413,파이리,VMAX Climax,015/184,KOR
+414,小火龍,VMAX Climax,015/184,TCHI
+415,ฮิโตคาเงะ,VMAX Climax,015/184,THA
+416,Charmander,VMAX Climax,015/184,IND
+417,Charmander,Sword & Shield Promotional Cards,SWSH092,ENG
 418,Charmander,Sword & Shield Promotional Cards,SWSH092,POR
 419,小火龙,Storming Emergence GX Starter Deck,028/324,SCHI
 420,小火龙,Storming Emergence Set A,002/151,SCHI
@@ -211,7 +246,10 @@ row,name,set,number,lang
 430,파이리,Pokémon Go,008/071,KOR
 432,ฮิโตคาเงะ,Pokémon Go,008/071,THA
 433,Charmander,Pokémon Go,008/071,IND
+440,Charmander,Sword & Shield Promotional Cards,SWSH232,ENG
 441,Glumanda,Sword & Shield Promotional Cards,SWSH232,GER
+442,Salamèche,Sword & Shield Promotional Cards,SWSH232,FRE
+443,Charmander,Sword & Shield Promotional Cards,SWSH232,ITA
 444,Charmander,Sword & Shield Promotional Cards,SWSH232,SPA
 445,Charmander,Sword & Shield Promotional Cards,SWSH232,POR
 446,ヒトカゲ,S-P Promotional Cards,289/S-P,JPN
@@ -230,26 +268,73 @@ row,name,set,number,lang
 459,小火龙,Vivid Portrayals Set A,027/115,SCHI
 460,小火龙,Vivid Portrayals Set A,027/115,SCHI
 461,小火龙,S-P Promotional Cards,040/S-P,SCHI
+468,ヒトカゲ,Pokémon Card 151,004/165,JPN
 469,파이리,Pokémon Card 151,004/165,KOR
+470,小火龍,Pokémon Card 151,004/165,TCHI
+471,ฮิโตคาเงะ,Pokémon Card 151,004/165,THA
+472,Charmander,Pokémon Card 151,004/165,IND
+479,ヒトカゲ,Pokémon Card 151,004/165,JPN
 480,파이리,Pokémon Card 151,004/165,KOR
+481,小火龍,Pokémon Card 151,004/165,TCHI
+482,ヒトカゲ,Pokémon Card 151,004/165,JPN
 483,파이리,Pokémon Card 151,004/165,KOR
+484,小火龍,Pokémon Card 151,004/165,TCHI
 495,Charmander,151,004/165,FRE
+496,ヒトカゲ,Shiny Treasure ex,025/190,JPN
 497,小火龍,Shiny Treasure ex,025/190,TCHI
+498,ヒトカゲ,Shiny Treasure ex,025/190,JPN
 499,小火龍,Shiny Treasure ex,025/190,TCHI
 500,ฮิโตคาเงะ,SV-P Promotional Cards,066/SV-P,THA
+507,ヒトカゲ,Pokémon Card 151,168/165,JPN
 508,파이리,Pokémon Card 151,168/165,KOR
 509,小火龍,Pokémon Card 151,168/165,TCHI
 510,ฮิโตคาเงะ,Pokémon Card 151,168/165,THA
 511,Charmander,Pokémon Card 151,168/165,IND
+512,ヒトカゲ,Shiny Treasure ex,210/190,JPN
 513,小火龍,Shiny Treasure ex,210/190,TCHI
+514,Charmander,SVP Promotional Cards,047,ENG
+515,Glumanda,SVP Promotional Cards,047,GER
+516,Salamèche,SVP Promotional Cards,047,FRE
+517,Charmander,SVP Promotional Cards,047,ITA
+518,Charmander,SVP Promotional Cards,047,SPA
+519,Charmander,SVP Promotional Cards,047,POR
 520,ヒトカゲ,SV-P Promotional Cards,060/SV-P,JPN
 521,파이리,SV-P Promotional Cards,040/SV-P,KOR
 522,ฮิโตคาเงะ,SVP Promotional Cards,035/SV-P,THA
+523,Charmander,Obsidian Flame,026/197,ENG
+524,Glumanda,Obsidian Flame,026/197,GER
+525,Salamèche,Obsidian Flame,026/197,FRE
+526,Charmander,Obsidian Flame,026/197,ITA
+527,Charmander,Obsidian Flame,026/197,SPA
+528,Charmander,Obsidian Flame,026/197,POR
+529,ヒトカゲ,Ruler of the Black Flame,012/108,JPN
 530,파이리,Ruler of the Black Flame,012/108,KOR
+531,小火龍,Ruler of the Black Flame,012/108,TCHI
+533,Charmander,Black Shine,013/170,IND
+534,Charmander,Obsidian Flame,026/197,ENG
+535,Glumanda,Obsidian Flame,026/197,GER
+536,Salamèche,Obsidian Flame,026/197,FRE
+537,Charmander,Obsidian Flame,026/197,ITA
+538,Charmander,Obsidian Flame,026/197,SPA
+539,Charmander,Obsidian Flame,026/197,POR
+540,Charmander,Obsidian Flame,026/197,ENG
+541,Glumanda,Obsidian Flame,026/197,GER
+542,Salamèche,Obsidian Flame,026/197,FRE
+543,Charmander,Obsidian Flame,026/197,ITA
+544,Charmander,Obsidian Flame,026/197,SPA
+545,Charmander,Obsidian Flame,026/197,POR
 546,ヒトカゲ,Charizard Special Deck Set ex,007/049,JPN
 547,파이리,Charizard Special Deck Set ex,007/049,KOR
+549,Charmander,ex Compact Deck,015/163,IND
+550,Charmander,SVP Promotional Cards,044,ENG
+551,Glumanda,SVP Promotional Cards,044,GER
+552,Salamèche,SVP Promotional Cards,044,FRE
+553,Charmander,SVP Promotional Cards,044,ITA
+554,Charmander,SVP Promotional Cards,044,SPA
+555,Charmander,SVP Promotional Cards,044,POR
 556,ヒトカゲ,Charizard Special Deck Set ex,051/049,JPN
 557,파이리,Charizard Special Deck Set ex,051/049,KOR
+558,Charmander,SVP Promotional Cards,044,ENG
 559,Charmander,My First Battle,-,ENG
 560,Glumanda,My First Battle,-,GER
 561,Salamèche,My First Battle,-,FRE
@@ -264,11 +349,9 @@ row,name,set,number,lang
 570,Charmander,My First Battle,-,POR
 571,小火龙,Brave Stars Set A,001/127,SCHI
 572,小火龙,Brave Stars Set A,001/127,SCHI
-575,Salamèche,Paldean Fates,007/091,FRE
 579,파이리,Shiny Treasure ex,025/190,KOR
 580,ฮิโตคาเงะ,Shiny Treasure ex,025/190,THA
 581,Charmander,Shiny Treasure ex,025/190,IND
-584,Salamèche,Paldean Fates,007/091,FRE
 588,파이리,Shiny Treasure ex,025/190,KOR
 589,ฮิโตคาเงะ,Shiny Treasure ex,025/190,THA
 590,Charmander,Shiny Treasure ex,025/190,IND
@@ -292,7 +375,6 @@ row,name,set,number,lang
 614,小火龙,Collect 151 Journey,004/151,SCHI
 615,小火龙,Collect 151 Journey,004/151,SCHI
 616,小火龙,Collect 151 Journey,004/151,SCHI
-619,Salamèche,Paldean Fates,007/091,FRE
 623,파이리,SV-P Promotional Cards,161/SV-P,KOR
 624,小火龍,SV-P Promotional Cards,232/SV-P,TCHI
 625,小火龙,Battle Party Dream,012/177,SCHI

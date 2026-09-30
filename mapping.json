@@ -10,7 +10,7 @@
       "default": "sv03.5"  
     },  
     "Pokemon Card 151": {  
-      "ja": "sv2a", "ko": "sv2a", "zh-tw": "sv2aF", "zh-cn": "sv2aS",  
+      "ja": "sv2a", "ko": "sv2a", "zh-tw": "sv2aF", "zh-cn": "sv2aS", "151": "sv03.5",
       "default": "sv03.5"  
     },  
     "Pokémon 151": {  

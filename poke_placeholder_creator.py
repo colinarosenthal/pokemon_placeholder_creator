@@ -11,9 +11,7 @@ import argparse
 import csv  
 import json  
 import re  
-import time  
 import unicodedata  
-import urllib.error  
 import urllib.parse  
 import urllib.request  
 from pathlib import Path  
@@ -33,7 +31,6 @@ TCGDEX_LANGS = {
   
 _set_cache = {}   # lang -> list of sets  
 _card_cache = {}  # (lang, set_id) -> list of cards  
-_full_cache = {}  # (lang, card_id) -> card dict or None  
   
   
 def norm(s):  
@@ -53,24 +50,6 @@ def norm_num(s):
     return f"{m.group(1)}{m.group(2)}{m.group(3)}".strip() if m else s  
   
   
-def alt_numbers(raw_num):  
-    """All plausible normalized localIds for a sheet number.  
-    Handles '58/102' -> {58}, '180/SV-P' -> {180, sv p180, 180sv p},  
-    'BPDP#004' -> {bpdp 4, 4}."""  
-    nums = set()  
-    if not raw_num:  
-        return nums  
-    raw = str(raw_num).strip()  
-    nums.add(norm_num(raw.split("/")[0]))           # "58/102" -> "58"  
-    if "/" in raw:  
-        parts = raw.split("/")  
-        nums.add(norm_num(parts[-1] + parts[0]))    # "180/SV-P" -> "sv p180"  
-        nums.add(norm_num(raw.replace("/", "")))    # -> "180sv p"  
-    nums.add(norm_num(raw))                         # "BPDP#004" -> "bpdp 4"  
-    nums.discard("")  
-    return nums  
-  
-  
 def get(row, *names):  
     """Flexible column lookup (case/space-insensitive, skips empty values)."""  
     lowered = {k.strip().lower(): v for k, v in row.items() if k}  
@@ -81,21 +60,10 @@ def get(row, *names):
     return ""  
   
   
-def fetch_json(url, retries=1):  
-    """GET JSON from TCGdex. 404 raises urllib.error.HTTPError(404);  
-    other transient errors are retried once then re-raised."""  
-    for attempt in range(retries + 1):  
-        try:  
-            req = urllib.request.Request(  
-                url, headers={"User-Agent": "poke-placeholder-creator"})  
-            with urllib.request.urlopen(req, timeout=30) as r:  
-                return json.loads(r.read().decode("utf-8"))  
-        except urllib.error.HTTPError:  
-            raise                                   # real HTTP status, no retry  
-        except Exception:  
-            if attempt >= retries:  
-                raise  
-            time.sleep(1)  
+def fetch_json(url):  
+    req = urllib.request.Request(url, headers={"User-Agent": "poke-placeholder-creator"})  
+    with urllib.request.urlopen(req, timeout=30) as r:  
+        return json.loads(r.read().decode("utf-8"))  
   
   
 def get_sets(lang):  
@@ -110,99 +78,67 @@ def get_sets(lang):
   
   
 def get_set_cards(lang, set_id):  
-    """All cards in a set, cached. Returns [] ONLY on HTTP 404 (set genuinely  
-    absent in that language); other failures also return [] but warn."""  
+    """All cards in a set, cached. Returns [] if the set doesn't exist  
+    in that language (TCGdex 404s)."""  
     key = (lang, set_id)  
     if key not in _card_cache:  
         try:  
             data = fetch_json(f"https://api.tcgdex.net/v2/{lang}/sets/{set_id}")  
             _card_cache[key] = data.get("cards", [])  
-        except urllib.error.HTTPError as e:  
-            if e.code == 404:  
-                _card_cache[key] = []               # set doesn't exist here  
-            else:  
-                print(f"  ! HTTP {e.code} fetching set {lang}/{set_id}")  
-                _card_cache[key] = []  
-        except Exception as e:  
-            print(f"  ! error fetching set {lang}/{set_id}: {e}")  
-            _card_cache[key] = []  
+        except Exception:  
+            _card_cache[key] = []   # set absent in this language -> no match  
     return _card_cache[key]  
   
   
-def get_card(lang, card_id):  
-    """Fetch a full card by its id (e.g. 'swsh3-136') — the authoritative  
-    source for its set name, since brief cards carry no set object."""  
-    key = (lang, card_id)  
-    if key not in _full_cache:  
-        try:  
-            _full_cache[key] = fetch_json(  
-                f"https://api.tcgdex.net/v2/{lang}/cards/"  
-                f"{urllib.parse.quote(card_id)}")  
-        except Exception:  
-            _full_cache[key] = None  
-    return _full_cache[key]  
+def _resolve_alias(sheet_set, aliases):  
+    """Return the alias target for a sheet set name, or the name itself."""  
+    return aliases.get(norm(sheet_set), sheet_set)  
   
   
 def find_set_id(lang, sheet_set, aliases):  
-    """Match your sheet's Set name to a TCGdex set id in `lang`.  
-    Accepts an alias value that is a set NAME or a set ID. Exact normalized-name  
-    match wins; otherwise the subset match with the most tokens wins."""  
-    raw = aliases.get(norm(sheet_set), sheet_set)  
-    if isinstance(raw, dict):                       # per-language alias  
-        raw = raw.get(lang, raw.get("default", ""))  
-    want = norm(raw)  
+    """Match a set name to a TCGdex set id within one language's set list.  
+  
+    The alias target may be either a set name OR a set id (e.g. "base1").  
+    Exact normalized-name match wins; otherwise the subset match with the  
+    most tokens is returned so ambiguous short names don't grab the first  
+    partial hit."""  
+    want = norm(_resolve_alias(sheet_set, aliases))  
     want_t = set(want.split())  
     if not want_t:  
         return None  
-    for s in get_sets(lang):  
-        if norm(s.get("id", "")) == want:           # alias/-sheet gave a set id  
+    sets = get_sets(lang)  
+    # alias that is a raw set id -> direct hit  
+    for s in sets:  
+        if norm(s.get("id", "")) == want:  
             return s["id"]  
-    for s in get_sets(lang):  
+    for s in sets:  
         if norm(s.get("name", "")) == want:  
             return s["id"]  
-    best, best_len = None, 0  
-    for s in get_sets(lang):  
-        tokens = set(norm(s.get("name", "")).split())  
-        if want_t.issubset(tokens) and len(tokens) > best_len:  
-            best, best_len = s["id"], len(tokens)  
-    return best  
+    best_id, best_overlap = None, 0  
+    for s in sets:  
+        set_t = set(norm(s.get("name", "")).split())  
+        if want_t.issubset(set_t) and len(set_t) > best_overlap:  
+            best_id, best_overlap = s["id"], len(set_t)  
+    return best_id  
   
   
 def resolve_set_id(lang, sheet_set, aliases):  
-    """Resolve the sheet's (English) set name to a set id usable in `lang`.  
-  
-    The sheet's Set column is English but TCGdex localizes set names, so the  
-    ENGLISH set list resolves the name first; the id is then reused in the  
-    card's own language, where TCGdex shares set ids when the set exists.  
-    Returns an id verified to exist in `lang`, or None."""  
-    raw = aliases.get(norm(sheet_set))  
+    """Resolve the sheet's (English) set name to a set id, preferring the  
+    English set list since sheet set names are English, then falling back  
+    to the card's own language (in case a sheet uses localized names).  
+    Returns the set id only if that set actually exists in the card's  
+    language -- TCGdex shares set ids across languages."""  
     candidates = []  
-  
-    if isinstance(raw, dict):                       # per-lang alias -> try id directly  
-        direct = raw.get(lang, raw.get("default"))  
-        if direct:  
-            candidates.append(direct)  
-    elif raw and raw != sheet_set:                  # plain alias: could be id or name  
-        for s in get_sets(lang):  
-            if norm(s.get("id", "")) == norm(raw):  
-                candidates.append(s["id"])  
-                break  
-        else:  
-            candidates.append(raw)                  # treat as name, verified below  
-  
     if lang != "en":  
         en_id = find_set_id("en", sheet_set, aliases)  
-        if en_id and en_id not in candidates:  
+        if en_id:  
             candidates.append(en_id)  
-  
-    own = find_set_id(lang, sheet_set, aliases)     # works when sheet uses  
-    if own and own not in candidates:               # localized set names too  
-        candidates.append(own)  
-  
-    for cid in candidates:  
-        cards = get_set_cards(lang, cid)            # [] = absent (404) or unresolvable  
-        if cards:  
-            return cid  
+    own_id = find_set_id(lang, sheet_set, aliases)  
+    if own_id and own_id not in candidates:  
+        candidates.append(own_id)  
+    for sid in candidates:  
+        if get_set_cards(lang, sid):  
+            return sid  
     return None  
   
   
@@ -210,26 +146,28 @@ def name_tokens(s):
     return set(norm(s).split())  
   
   
-def pick_by_number(cards, numbers, name_t):  
-    """First card whose localId matches any acceptable number; prefer one  
-    whose name also overlaps the target name."""  
-    if not numbers:  
+def pick_by_number(cards, number, name_t):  
+    """Cards matching localId; require a name-token overlap to guard against  
+    promo-number collisions (e.g. '059/M-P' matching localId 59)."""  
+    num_match = [c for c in cards  
+                 if norm_num(str(c.get("localId", ""))) == number  
+                 or re.sub(r"\D", "", str(c.get("localId", ""))) == re.sub(r"\D", "", number)]  
+    if not num_match:  
         return None  
-    best = None  
-    best_overlap = -1  
-    for c in cards:  
-        if norm_num(c.get("localId", "")) not in numbers:  
-            continue  
-        overlap = len(name_t & name_tokens(c.get("name", "")))  
-        if overlap > best_overlap:  
-            best_overlap = overlap  
-            best = c  
-    return best  
+    if not name_t:  
+        return num_match[0]  
+    for c in num_match:  
+        if name_t & name_tokens(c.get("name", "")):  
+            return c  
+    return None  # number matched but wrong card name -> don't return a wrong image  
   
   
 def pick_by_name(cards, name_t):  
-    """Name-only match inside a set — ONLY if the card's name fully covers the  
-    sheet name's tokens (prevents returning a wrong same-name-adjacent card)."""  
+    """Name-only match inside a set. Only returns a card when ALL of the  
+    sheet's name tokens appear in the card name, so a partial overlap  
+    (e.g. sheet 'Charmander ex' vs a plain 'Charmander') can never produce  
+    a wrong image. Safe to use as a fallback for collector-notation  
+    mismatches like sheet '58/102' vs TCGdex localId '46'."""  
     if not name_t:  
         return None  
     for c in cards:  
@@ -238,124 +176,150 @@ def pick_by_name(cards, name_t):
     return None  
   
   
-def card_image(card):  
-    """TCGdex image base URL + quality/extension."""  
-    img = card.get("image")  
+def card_set_id(c):  
+    """Set id from a brief card result (id looks like 'swsh3-136')."""  
+    cid = str(c.get("id", ""))  
+    return cid.rsplit("-", 1)[0] if "-" in cid else ""  
+  
+  
+def card_image(c):  
+    img = c.get("image")  
     return f"{img}/high.png" if img else None  
   
   
-def card_set_id(card):  
-    """Set id of a card brief: documented `set.id` if present, else parse the  
-    'setid-localId' id format."""  
-    sid = (card.get("set") or {}).get("id")  
-    if sid:  
-        return sid  
-    cid = card.get("id", "")  
-    return cid.split("-")[0] if "-" in cid else ""  
-  
-  
-def candidate_in_set(lang, card, want, want_t):  
-    """Verify a Pass-2 candidate belongs to the sheet's set. Briefs have no  
-    set object, so fetch the full card for its authoritative set name."""  
-    sid = card_set_id(card)  
-    if norm(sid) == want:  
-        return True  
-    full = get_card(lang, card.get("id", ""))  
-    sname = norm((full or {}).get("set", {}).get("name", ""))  
-    st = set(sname.split())  
-    return bool(want_t) and (want_t <= st)  
-  
-  
 def find_image(row, aliases):  
-    """Card image URL from TCGdex, or None."""  
-    lang = TCGDEX_LANGS.get(get(row, "Lang", "Language").upper())  
+    """Return card image URL from TCGdex, or None."""  
+    lang = TCGDEX_LANGS.get(get(row, "Lang", "Language").strip().upper())  
     if not lang:  
         return None  
-    sheet_set = get(row, "Set")  
-    name_t = name_tokens(get(row, "Card Name", "Name"))  
-    raw_num = get(row, "#", "Number", "No.")  
-    numbers = alt_numbers(raw_num)                  # {"58"} or {"180","sv p180",...}  
   
-    # Pass 1: resolve the set, then number -> strict name inside that set only.  
+    name = get(row, "Card Name", "Name").strip()  
+    name_t = name_tokens(name)  
+    raw_num = get(row, "#", "Number", "No.")  
+    number = norm_num(raw_num.split("/")[0])      # "58/102" -> "58"  
+    sheet_set = get(row, "Set")  
+  
+    # Pass 1: resolve the set (English names -> shared set ids), then match  
+    # inside it by number+name, falling back to a fully-covering name match  
+    # for collector-notation mismatches. If the set resolves but the card  
+    # isn't in it, STOP -- a same-numbered card from another set is wrong.  
     set_id = resolve_set_id(lang, sheet_set, aliases)  
     if set_id:  
         cards = get_set_cards(lang, set_id)  
-        c = pick_by_number(cards, numbers, name_t) or pick_by_name(cards, name_t)  
+        c = pick_by_number(cards, number, name_t) or pick_by_name(cards, name_t)  
         if c:  
             return card_image(c)  
-        return None     # right set, card genuinely absent -> don't guess elsewhere  
+        return None  
   
-    # Pass 2: no set resolved at all. Server-side filter with STRICT localId  
-    # matching ('eq:' — a bare 'localId=4' is a contains-match and would hit  
-    # '004', '14', '40'), then verify each candidate's real set name via the  
-    # full-card endpoint before accepting it.  
-    name = get(row, "Card Name", "Name").strip()  
-    if name and numbers:  
-        q = urllib.parse.quote  
+    # Pass 2: the set couldn't be resolved at all (typo, promo set, or set  
+    # absent from TCGdex). Language-wide name search is allowed, but a hit  
+    # is only accepted when its own set name fuzzily matches the sheet's  
+    # set -- a bare number match across all sets is never accepted.  
+    if name:  
         try:  
             results = fetch_json(  
-                f"https://api.tcgdex.net/v2/{lang}/cards"  
-                f"?name={q(name)}&localId=eq:{q(sorted(numbers)[0])}")  
+                f"https://api.tcgdex.net/v2/{lang}/cards?name={urllib.parse.quote(name)}")  
             if isinstance(results, dict):  
                 results = [results]  
         except Exception:  
             results = []  
-        raw = aliases.get(norm(sheet_set), sheet_set)  
-        if isinstance(raw, dict):  
-            raw = raw.get(lang, raw.get("default", sheet_set))  
-        want = norm(raw)  
-        want_t = set(want.split()) - {"the", "set"}  
+        want = norm(_resolve_alias(sheet_set, aliases))  
+        want_t = set(want.split())  
+        set_names = {s["id"]: norm(s.get("name", "")) for s in get_sets(lang)}  
+        set_names.update({s["id"]: norm(s.get("name", "")) for s in get_sets("en")})  
+        candidates = []  
         for c in results:  
-            if candidate_in_set(lang, c, want, want_t):  
-                return card_image(c)  
+            sid = card_set_id(c)  
+            set_t = set(set_names.get(sid, "").split())  
+            if want_t and (want_t.issubset(set_t) or set_t.issubset(want_t)):  
+                candidates.append(c)  
+            elif norm(sid) == want:   # alias was a raw set id  
+                candidates.append(c)  
+        c = pick_by_number(candidates, number, name_t) or pick_by_name(candidates, name_t)  
+        if c:  
+            return card_image(c)  
     return None  
   
   
+def holo_label(row):  
+    """Generic holo label from Art Type when no note specifies a special holo."""  
+    text = get(row, "Art Type", "Artwork").lower()  
+    if "non-holo" in text or "non holo" in text:  
+        return ""  
+    if "reverse holo" in text:  
+        return "Reverse Holo"  
+    if "shiny holo" in text:  
+        return "Shiny Holo"  
+    if "full art" in text:  
+        return "Full Art"  
+    if re.search(r"\bholo\b", text):  
+        return "Holo"  
+    return ""  
+  
+  
 def build_desc(row):  
-    """Extra info shown under the image: Rarity + Variant (from Variant/Variant Type)."""  
-    parts = []  
-    for k in ("Rarity",):  
-        v = get(row, k)  
-        if v:  
-            parts.append(v)  
-    v = get(row, "Variant", "Variant Type", "Varient")  
-    if v:  
-        parts.append(v)  
-    return " - ".join(parts)  
+    """Single descriptor line: special-holo phrase first, then all other  
+    notes, joined with ' • '."""  
+    notes_raw = get(row, "Version / Notes", "Notes", "Version")  
+    parts = [p.strip() for p in notes_raw.split(",") if p.strip()]  
+  
+    holo = ""  
+    other = []  
+    for p in parts:  
+        if "holo" in p.lower():  
+            m = re.search(r"([A-Za-zÀ-ÿ' ]+?\b[Hh]olo)\b", p)  
+            label = m.group(1).strip().title() if m else p.title()  
+            generic = {"holo", "reverse holo", "non holo", "non-holo"}  
+            if label.lower() not in generic:  
+                holo = label            # note's holo wins over Art Type  
+            rest = (p[:m.start()] + p[m.end():]).strip() if m else ""  
+            if rest:  
+                other.append(rest)  
+        else:  
+            other.append(p)  
+  
+    if not holo:  
+        holo = holo_label(row)  
+  
+    segs = ([holo] if holo else []) + other  
+    return " • ".join(segs)  
   
   
-def render_pdf(html_path, out_pdf, page_key):  
-    page_css = {"a4": "A4", "letter": "Letter"}.get(page_key.lower(), "A4")  
-    with sync_playwright() as p:  
-        browser = p.chromium.launch()  
+def render_pdf(html_path, out_path, page_size):  
+    with sync_playwright() as pw:  
+        browser = pw.chromium.launch()  
         page = browser.new_page()  
-        page.goto(Path(html_path).resolve().as_uri(), wait_until="networkidle")  
-        page.pdf(path=out_pdf, format=page_css, print_background=True,  
-                 margin={"top": "0", "bottom": "0", "left": "0", "right": "0"})  
+        page.goto(Path(html_path).resolve().as_uri())  
+        page.wait_for_load_state("networkidle")  
+        page.pdf(  
+            path=out_path,  
+            width="8.5in" if page_size == "letter" else "210mm",  
+            height="11in" if page_size == "letter" else "297mm",  
+            print_background=True,  
+            margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},  
+        )  
         browser.close()  
   
   
 def main():  
-    ap = argparse.ArgumentParser(description="TCGdex -> placeholder PDF")  
-    ap.add_argument("csv", help="CSV export of your sheet (first column = order)")  
+    ap = argparse.ArgumentParser()  
+    ap.add_argument("csv", help="CSV export of your Google Sheet")  
     ap.add_argument("-o", "--out", default="placeholders.pdf")  
-    ap.add_argument("--html", default="placeholders.html",  
-                    help="intermediate HTML (edit/re-render without refetching)")  
-    ap.add_argument("--page", default="a4", choices=["a4", "letter"])  
+    ap.add_argument("--html", default="placeholders.html")  
+    ap.add_argument("--mapping", default="mapping.json")  
+    ap.add_argument("--page", choices=["letter", "a4"], default="letter")  
     args = ap.parse_args()  
   
-    # optional manual aliases for set names that differ from TCGdex  
-    # e.g. {"set_aliases": {"Base Set": "base1", "Pokémon Card 151":  
-    #                        {"ja": "sv2a", "default": "sv03.5"}}}  
-    aliases = {}  
-    if Path("mapping.json").exists():  
-        aliases = json.loads(Path("mapping.json")  
-                             .read_text(encoding="utf-8")).get("set_aliases", {})  
-        aliases = {norm(k): v for k, v in aliases.items()}  
+    mapping = {}  
+    mapping_path = Path(args.mapping)  
+    if mapping_path.exists():  
+        mapping = json.loads(mapping_path.read_text(encoding="utf-8"))  
+    aliases = {norm(k): v for k, v in mapping.get("set_aliases", {}).items()}  
   
     rows = list(csv.DictReader(open(args.csv, encoding="utf-8-sig")))  
     print(f"{len(rows)} rows in spreadsheet")  
     print("Fetching card images from TCGdex ...")  
+  
     cards, unmatched = [], []  
     for i, row in enumerate(rows, 1):  
         if not any(v and v.strip() for v in row.values()):  

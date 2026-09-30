@@ -268,19 +268,24 @@ row,name,set,number,lang
 459,小火龙,Vivid Portrayals Set A,027/115,SCHI
 460,小火龙,Vivid Portrayals Set A,027/115,SCHI
 461,小火龙,S-P Promotional Cards,040/S-P,SCHI
+468,ヒトカゲ,Pokémon Card 151,004/165,JPN
 469,파이리,Pokémon Card 151,004/165,KOR
 470,小火龍,Pokémon Card 151,004/165,TCHI
 471,ฮิโตคาเงะ,Pokémon Card 151,004/165,THA
 472,Charmander,Pokémon Card 151,004/165,IND
+479,ヒトカゲ,Pokémon Card 151,004/165,JPN
 480,파이리,Pokémon Card 151,004/165,KOR
 481,小火龍,Pokémon Card 151,004/165,TCHI
+482,ヒトカゲ,Pokémon Card 151,004/165,JPN
 483,파이리,Pokémon Card 151,004/165,KOR
 484,小火龍,Pokémon Card 151,004/165,TCHI
+495,Charmander,151,004/165,FRE
 496,ヒトカゲ,Shiny Treasure ex,025/190,JPN
 497,小火龍,Shiny Treasure ex,025/190,TCHI
 498,ヒトカゲ,Shiny Treasure ex,025/190,JPN
 499,小火龍,Shiny Treasure ex,025/190,TCHI
 500,ฮิโตคาเงะ,SV-P Promotional Cards,066/SV-P,THA
+507,ヒトカゲ,Pokémon Card 151,168/165,JPN
 508,파이리,Pokémon Card 151,168/165,KOR
 509,小火龍,Pokémon Card 151,168/165,TCHI
 510,ฮิโตคาเงะ,Pokémon Card 151,168/165,THA
@@ -305,7 +310,6 @@ row,name,set,number,lang
 529,ヒトカゲ,Ruler of the Black Flame,012/108,JPN
 530,파이리,Ruler of the Black Flame,012/108,KOR
 531,小火龍,Ruler of the Black Flame,012/108,TCHI
-532,ฮิโตคาเงะ,Ruler of the Black Flame,012/108,THA
 533,Charmander,Black Shine,013/170,IND
 534,Charmander,Obsidian Flame,026/197,ENG
 535,Glumanda,Obsidian Flame,026/197,GER
@@ -321,7 +325,6 @@ row,name,set,number,lang
 545,Charmander,Obsidian Flame,026/197,POR
 546,ヒトカゲ,Charizard Special Deck Set ex,007/049,JPN
 547,파이리,Charizard Special Deck Set ex,007/049,KOR
-548,ฮิโตคาเงะ,ex Compact Deck,015/163,THA
 549,Charmander,ex Compact Deck,015/163,IND
 550,Charmander,SVP Promotional Cards,044,ENG
 551,Glumanda,SVP Promotional Cards,044,GER

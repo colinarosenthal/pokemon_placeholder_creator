@@ -128,6 +128,10 @@ row,name,set,number,lang
 222,Charmander,Generations,RC3/RC32,POR
 223,ヒトカゲ,PokéKyun Collection,003/032,JPN
 224,파이리,PokéKyun Collection,003/032,KOR
+225,Charmander,Burning Shadows,18/147,ENG
+226,Glumanda,Burning Shadows,18/147,GER
+227,Salamèche,Burning Shadows,18/147,FRE
+228,Charmander,Burning Shadows,18/147,ITA
 231,ヒトカゲ,To Have Seen the Battle Rainbow,009/051,JPN
 232,파이리,To Have Seen the Battle Rainbow,009/051,KOR
 245,ヒトカゲ,SM-P Promotional cards,112/SM-P,JPN
@@ -135,6 +139,7 @@ row,name,set,number,lang
 247,ヒトカゲ,Fire Charizard-GX Starter Deck,011/131,JPN
 248,Salamèche,McDonald's Collection 2018,4/40,FRE
 249,Salamèche,McDonald's Collection 2018,4/40,FRE
+250,Charmander,Burning Shadows,18a/147,ENG
 251,Charmander,Dragon Majesty,1/70,ENG
 252,Glumanda,Dragon Majesty,1/70,GER
 253,Salamèche,Dragon Majesty,1/70,FRE
@@ -163,6 +168,7 @@ row,name,set,number,lang
 276,小火龍,All Stars Collection GX Starter Deck,017/157,TCHI
 277,ฮิโตคาเงะ,First Impact GX Starter Deck,014/140,THA
 278,Charmander,First Impact GX Starter Deck,014/140,IND
+279,Charmander,Burning Shadows,18a/147,ENG
 280,ฮิโตคาเงะ,First Impact Set A,036/150,THA
 281,Charmander,First Impact Set A,036/150,IND
 282,Charmander,SM-P Promotional cards,015/SM-P,IND

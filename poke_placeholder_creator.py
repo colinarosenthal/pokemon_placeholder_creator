@@ -11,7 +11,9 @@ import argparse
 import csv  
 import json  
 import re  
+import time  
 import unicodedata  
+import urllib.error  
 import urllib.parse  
 import urllib.request  
 from pathlib import Path  
@@ -60,10 +62,22 @@ def get(row, *names):
     return ""  
   
   
-def fetch_json(url):  
-    req = urllib.request.Request(url, headers={"User-Agent": "poke-placeholder-creator"})  
-    with urllib.request.urlopen(req, timeout=30) as r:  
-        return json.loads(r.read().decode("utf-8"))  
+def fetch_json(url, retries=1):  
+    """GET a TCGdex endpoint. 404s propagate as the HTTPError; transient  
+    errors are retried once before propagating."""  
+    for attempt in range(retries + 1):  
+        try:  
+            req = urllib.request.Request(  
+                url, headers={"User-Agent": "poke-placeholder-creator"})  
+            with urllib.request.urlopen(req, timeout=30) as r:  
+                return json.loads(r.read().decode("utf-8"))  
+        except urllib.error.HTTPError:  
+            raise   # 404 etc. are meaningful -> let the caller decide  
+        except Exception:  
+            if attempt >= retries:  
+                raise  
+            time.sleep(1)  
+    return None  
   
   
 def get_sets(lang):  
@@ -78,36 +92,49 @@ def get_sets(lang):
   
   
 def get_set_cards(lang, set_id):  
-    """All cards in a set, cached. Returns [] if the set doesn't exist  
-    in that language (TCGdex 404s)."""  
+    """All cards in a set, cached. Returns [] only when TCGdex says the set  
+    doesn't exist in that language (404). Transient errors are logged and  
+    also return [] so one outage can't silently corrupt the run."""  
     key = (lang, set_id)  
     if key not in _card_cache:  
         try:  
             data = fetch_json(f"https://api.tcgdex.net/v2/{lang}/sets/{set_id}")  
             _card_cache[key] = data.get("cards", [])  
-        except Exception:  
-            _card_cache[key] = []   # set absent in this language -> no match  
+        except urllib.error.HTTPError as e:  
+            if e.code == 404:  
+                _card_cache[key] = []       # set genuinely absent in this lang  
+            else:  
+                print(f"  ! HTTP {e.code} fetching set {set_id} ({lang})")  
+                _card_cache[key] = []  
+        except Exception as e:  
+            print(f"  ! error fetching set {set_id} ({lang}): {e}")  
+            _card_cache[key] = []  
     return _card_cache[key]  
   
   
-def _resolve_alias(sheet_set, aliases):  
-    """Return the alias target for a sheet set name, or the name itself."""  
-    return aliases.get(norm(sheet_set), sheet_set)  
+def _resolve_alias(sheet_set, aliases, lang):  
+    """Return the alias target for a sheet set name. Aliases may be a plain  
+    string (name or set id) or a dict of {'lang': id, 'default': id} for  
+    sets whose id differs across languages."""  
+    target = aliases.get(norm(sheet_set), sheet_set)  
+    if isinstance(target, dict):  
+        return target.get(lang) or target.get("default") or sheet_set  
+    return target  
   
   
 def find_set_id(lang, sheet_set, aliases):  
     """Match a set name to a TCGdex set id within one language's set list.  
   
-    The alias target may be either a set name OR a set id (e.g. "base1").  
-    Exact normalized-name match wins; otherwise the subset match with the  
-    most tokens is returned so ambiguous short names don't grab the first  
-    partial hit."""  
-    want = norm(_resolve_alias(sheet_set, aliases))  
+    The alias target may be a set name OR a set id (e.g. "base1"). Exact  
+    normalized-name match wins; otherwise the subset match with the most  
+    tokens is returned so ambiguous short names don't grab the first hit."""  
+    want = norm(_resolve_alias(sheet_set, aliases, lang))  
     want_t = set(want.split())  
     if not want_t:  
         return None  
     sets = get_sets(lang)  
-    # alias that is a raw set id -> direct hit  
+    # alias that is a raw set id -> direct hit (works even if the set's  
+    # localized name could never match the English alias)  
     for s in sets:  
         if norm(s.get("id", "")) == want:  
             return s["id"]  
@@ -123,19 +150,35 @@ def find_set_id(lang, sheet_set, aliases):
   
   
 def resolve_set_id(lang, sheet_set, aliases):  
-    """Resolve the sheet's (English) set name to a set id, preferring the  
-    English set list since sheet set names are English, then falling back  
-    to the card's own language (in case a sheet uses localized names).  
-    Returns the set id only if that set actually exists in the card's  
-    language -- TCGdex shares set ids across languages."""  
+    """Resolve the sheet's (English) set name to a set id. Tries, in order:  
+    1. the alias target interpreted for this language (handles per-lang ids)  
+    2. the English set list -> shared id verified in the card's language  
+    3. the card language's own set list (localized sheet names)  
+    Only ids for sets that actually exist in the card's language are returned."""  
     candidates = []  
+  
+    # 1. language-aware alias target may be a raw id usable directly  
+    target = _resolve_alias(sheet_set, aliases, lang)  
+    if target != sheet_set:  
+        for s in get_sets(lang):  
+            if norm(s.get("id", "")) == norm(target):  
+                candidates.append(s["id"])  
+                break  
+        # id may still be valid even if not listed yet  
+        if not candidates and re.fullmatch(r"[a-z0-9.\-]+", str(target).lower()):  
+            candidates.append(str(target))  
+  
+    # 2. resolve via English list, then reuse the shared id  
     if lang != "en":  
         en_id = find_set_id("en", sheet_set, aliases)  
-        if en_id:  
+        if en_id and en_id not in candidates:  
             candidates.append(en_id)  
+  
+    # 3. resolve in the card's own language  
     own_id = find_set_id(lang, sheet_set, aliases)  
     if own_id and own_id not in candidates:  
         candidates.append(own_id)  
+  
     for sid in candidates:  
         if get_set_cards(lang, sid):  
             return sid  
@@ -164,10 +207,9 @@ def pick_by_number(cards, number, name_t):
   
 def pick_by_name(cards, name_t):  
     """Name-only match inside a set. Only returns a card when ALL of the  
-    sheet's name tokens appear in the card name, so a partial overlap  
-    (e.g. sheet 'Charmander ex' vs a plain 'Charmander') can never produce  
-    a wrong image. Safe to use as a fallback for collector-notation  
-    mismatches like sheet '58/102' vs TCGdex localId '46'."""  
+    sheet's name tokens appear in the card name -- a partial overlap means  
+    it's a different card, so None is safer than a wrong image. Handles  
+    collector-notation mismatches like sheet '58/102' vs localId '46'."""  
     if not name_t:  
         return None  
     for c in cards:  
@@ -177,7 +219,11 @@ def pick_by_name(cards, name_t):
   
   
 def card_set_id(c):  
-    """Set id from a brief card result (id looks like 'swsh3-136')."""  
+    """Set id from a card result. Prefers the documented `set` object;  
+    falls back to parsing the card id ('swsh3-136' -> 'swsh3')."""  
+    s = c.get("set")  
+    if isinstance(s, dict) and s.get("id"):  
+        return s["id"]  
     cid = str(c.get("id", ""))  
     return cid.rsplit("-", 1)[0] if "-" in cid else ""  
   
@@ -199,10 +245,10 @@ def find_image(row, aliases):
     number = norm_num(raw_num.split("/")[0])      # "58/102" -> "58"  
     sheet_set = get(row, "Set")  
   
-    # Pass 1: resolve the set (English names -> shared set ids), then match  
-    # inside it by number+name, falling back to a fully-covering name match  
-    # for collector-notation mismatches. If the set resolves but the card  
-    # isn't in it, STOP -- a same-numbered card from another set is wrong.  
+    # Pass 1: resolve the set (English sheet names -> shared/per-lang ids),  
+    # then match inside it by number+name, falling back to a fully-covering  
+    # name match. If the set resolves but the card isn't in it, STOP --  
+    # a same-numbered card from another set is always wrong.  
     set_id = resolve_set_id(lang, sheet_set, aliases)  
     if set_id:  
         cards = get_set_cards(lang, set_id)  
@@ -211,30 +257,34 @@ def find_image(row, aliases):
             return card_image(c)  
         return None  
   
-    # Pass 2: the set couldn't be resolved at all (typo, promo set, or set  
-    # absent from TCGdex). Language-wide name search is allowed, but a hit  
-    # is only accepted when its own set name fuzzily matches the sheet's  
-    # set -- a bare number match across all sets is never accepted.  
+    # Pass 2: the set couldn't be resolved at all. Use TCGdex's server-side  
+    # filters (name + localId) instead of pulling every name match, then  
+    # only accept hits whose own set fuzzily matches the sheet's set.  
     if name:  
+        params = {"name": name}  
+        if number:  
+            params["localId"] = number  
         try:  
             results = fetch_json(  
-                f"https://api.tcgdex.net/v2/{lang}/cards?name={urllib.parse.quote(name)}")  
+                f"https://api.tcgdex.net/v2/{lang}/cards?{urllib.parse.urlencode(params)}")  
             if isinstance(results, dict):  
                 results = [results]  
         except Exception:  
             results = []  
-        want = norm(_resolve_alias(sheet_set, aliases))  
+        want = norm(_resolve_alias(sheet_set, aliases, lang))  
         want_t = set(want.split())  
         set_names = {s["id"]: norm(s.get("name", "")) for s in get_sets(lang)}  
         set_names.update({s["id"]: norm(s.get("name", "")) for s in get_sets("en")})  
         candidates = []  
         for c in results:  
             sid = card_set_id(c)  
+            if norm(sid) == want:            # alias was a raw set id  
+                candidates.append(c)  
+                continue  
             set_t = set(set_names.get(sid, "").split())  
             if want_t and (want_t.issubset(set_t) or set_t.issubset(want_t)):  
                 candidates.append(c)  
-            elif norm(sid) == want:   # alias was a raw set id  
-                candidates.append(c)  
+        # number was already filtered server-side; still guard on name  
         c = pick_by_number(candidates, number, name_t) or pick_by_name(candidates, name_t)  
         if c:  
             return card_image(c)  

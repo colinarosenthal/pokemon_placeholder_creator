@@ -5,12 +5,26 @@
     "Base Set 2": "base4",  
     "Team Rocket": "base5",  
     "Expedition Base Set": "ecard1",  
-    "Pokémon Card 151": "sv03.5",  
-    "Pokemon Card 151": "sv03.5",  
-    "Pokémon 151": "sv03.5",  
-    "Pokemon Card Game Classic": "Pokémon Trading Card Game Classic",  
-    "Hidden Fates": "sm115",  
-    "Paldean Fates": "sv04.5",  
+    "Pokémon Card 151": {  
+      "ja": "sv2a", "ko": "sv2a", "zh-tw": "sv2aF", "zh-cn": "sv2aS",  
+      "default": "sv03.5"  
+    },  
+    "Pokemon Card 151": {  
+      "ja": "sv2a", "ko": "sv2a", "zh-tw": "sv2aF", "zh-cn": "sv2aS",  
+      "default": "sv03.5"  
+    },  
+    "Pokémon 151": {  
+      "ja": "sv2a", "ko": "sv2a", "zh-tw": "sv2aF", "zh-cn": "sv2aS",  
+      "default": "sv03.5"  
+    },  
+    "Hidden Fates": {  
+      "ja": "sm8b", "ko": "sm8b",  
+      "default": "sm115"  
+    },  
+    "Paldean Fates": {  
+      "ja": "sv4a", "ko": "sv4a", "zh-tw": "sv4aF", "zh-cn": "sv4aS",  
+      "default": "sv04.5"  
+    },  
     "Boundaries Crossed": "bw7",  
     "EX Power Keepers": "ex16",  
     "EX Crystal Guardians": "ex14",  
@@ -22,6 +36,16 @@
     "Detective Pikachu": "det1",  
     "McDonald's Collection 2021": "mcd21",  
     "McDonald's Collection 2019": "mcd19",  
-    "McDonald's Collection 2018": "mcd18"  
+    "McDonald's Collection 2018": "mcd18",  
+    "Pokemon Card Game Classic": "Pokémon Trading Card Game Classic",  
+    "VMAX Climax": {  
+      "ja": "s8b", "ko": "s8b", "zh-tw": "s8bF", "zh-cn": "s8bS",  
+      "default": "s8b"  
+    },  
+    "Freeze Bolt": {  
+      "ja": "bw6", "ko": "bw6k",  
+      "default": "bw6"  
+    },  
+    "Shining Darkness": "dp3"  
   }  
 }

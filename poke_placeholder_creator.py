@@ -102,8 +102,7 @@ def find_set_id(lang, sheet_set, aliases):
     Exact normalized-name match wins; otherwise the subset match with the  
     most tokens is returned so ambiguous short names don't grab the first  
     partial hit."""  
-    target = _resolve_alias(sheet_set, aliases)  
-    want = norm(target)  
+    want = norm(_resolve_alias(sheet_set, aliases))  
     want_t = set(want.split())  
     if not want_t:  
         return None  
@@ -167,7 +166,7 @@ def pick_by_name(cards, name_t):
     """Name-only match inside a set. Only returns a card when ALL of the  
     sheet's name tokens appear in the card name, so a partial overlap  
     (e.g. sheet 'Charmander ex' vs a plain 'Charmander') can never produce  
-    a wrong image. Safe to use as a fallback for collector-number notation  
+    a wrong image. Safe to use as a fallback for collector-notation  
     mismatches like sheet '58/102' vs TCGdex localId '46'."""  
     if not name_t:  
         return None  

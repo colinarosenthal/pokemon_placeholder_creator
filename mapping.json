@@ -2,6 +2,7 @@
   "set_aliases": {  
     "Expansion Pack": "base1",  
     "Base Set": "base1",  
+    "Base Set 2": "base4",  
     "Team Rocket": "base5",  
     "Expedition Base Set": "ecard1",  
     "Pokémon Card 151": "sv03.5",  
@@ -15,6 +16,12 @@
     "EX Crystal Guardians": "ex14",  
     "EX Dragon": "ex3",  
     "EX FireRed & LeafGreen": "ex6",  
-    "EX Legend Maker": "ex6"  
+    "EX Legend Maker": "ex12",  
+    "Dragon Majesty": "sm75",  
+    "Generations": "g1",  
+    "Detective Pikachu": "det1",  
+    "McDonald's Collection 2021": "mcd21",  
+    "McDonald's Collection 2019": "mcd19",  
+    "McDonald's Collection 2018": "mcd18"  
   }  
 }
